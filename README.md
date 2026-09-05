@@ -1,0 +1,80 @@
+# JobScout AI Foundation
+
+Phase 1 establishes the local development foundation for JobScout AI. Business features are intentionally not included.
+
+## Prerequisites
+
+- Docker Desktop with Docker Compose
+- Node.js 20+
+- Python 3.11+
+
+## Run with Docker
+
+1. Copy `.env.example` to `.env`.
+2. Start the services:
+
+```powershell
+docker compose up --build
+```
+
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- Backend health: http://localhost:8000/health
+- PostgreSQL: localhost:5432
+
+Stop services with `docker compose down`. Add `-v` only when you intentionally want to delete the local database volume.
+
+## Run services locally
+
+Backend:
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+copy ..\.env.example .env
+uvicorn app.main:app --reload --port 8000
+```
+
+Frontend:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+When running outside Docker, set `DATABASE_URL` to a reachable PostgreSQL instance. The backend health endpoint reports database connectivity.
+
+## Source Registry
+
+Phase 2 Step 1 exposes the source configuration and operational status record through the backend API:
+
+- `POST /sources` creates a source record.
+- `GET /sources` lists registered sources.
+- `GET /sources/{source_id}` retrieves one source.
+- `PATCH /sources/{source_id}` updates configuration or operational status.
+- `DELETE /sources/{source_id}` removes a source record.
+
+The registry does not call external job sources. Source-specific behavior belongs in future Source Adapters.
+
+## Tests
+
+```powershell
+cd backend
+pytest
+
+cd ..\frontend
+npm install
+npm test
+npm run build
+```
+
+## Configuration
+
+`.env.example` documents shared local defaults. Keep secrets in `.env`; `.env` is ignored by Git. The frontend receives only `NEXT_PUBLIC_API_URL`, while database credentials remain backend-only.
+
+## CI
+
+GitHub Actions runs backend tests, frontend tests, and the frontend production build on pushes and pull requests. Docker Compose is the supported local integration environment.
