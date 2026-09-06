@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS canonical_jobs (
 	job_id UUID PRIMARY KEY,
 	company_id UUID NOT NULL REFERENCES companies(company_id) ON DELETE RESTRICT,
 	title TEXT NOT NULL,
-	description TEXT NOT NULL,
+	description TEXT,
 	responsibilities TEXT,
 	locations JSONB,
 	workplace_type VARCHAR(20),

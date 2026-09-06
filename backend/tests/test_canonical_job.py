@@ -70,7 +70,16 @@ def test_normalizer_preserves_unknown_optional_values_as_none():
     assert canonical.salary is None
 
 
-@pytest.mark.parametrize("field", ["title", "company", "description"])
+def test_normalizer_preserves_missing_description_as_none():
+    payload = dict(BASE_RECORD)
+    payload["description"] = None
+
+    canonical = normalize_ingestion_record(JobIngestionRecord(**payload))
+
+    assert canonical.description is None
+
+
+@pytest.mark.parametrize("field", ["title", "company"])
 def test_canonical_job_validates_required_fields(field: str):
     payload = dict(BASE_RECORD)
     payload[field] = ""

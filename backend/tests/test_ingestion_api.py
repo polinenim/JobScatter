@@ -86,3 +86,25 @@ def test_run_source_rejects_missing_board_token(monkeypatch):
     assert response.json()["detail"] == (
         "Greenhouse source requires configuration.board_token"
     )
+
+
+def test_run_source_accepts_jobly_source(monkeypatch):
+    source = make_source(
+        source_type="jobly",
+        configuration={"search_term": "software", "location": "Finland"},
+    )
+    calls = []
+
+    class FakePipeline:
+        def run_source(self, received_source):
+            calls.append(received_source)
+            return IngestionRunSummary(fetched=1, valid=1, new=1)
+
+    monkeypatch.setattr(ingestion_api, "get_source_record", lambda _: source)
+    monkeypatch.setattr(ingestion_api, "IngestionPipeline", FakePipeline)
+
+    response = client.post(f"/ingestion/sources/{source.source_id}/run")
+
+    assert response.status_code == 200
+    assert response.json()["fetched"] == 1
+    assert calls == [source]

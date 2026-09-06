@@ -21,7 +21,7 @@ class CanonicalJobListItem(BaseModel):
     job_id: UUID
     company: str
     title: str
-    description: str
+    description: str | None = None
     locations: list[str] | None = None
     workplace_type: str | None = None
     country: str | None = None

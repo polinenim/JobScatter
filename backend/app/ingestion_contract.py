@@ -13,7 +13,7 @@ class JobIngestionRecord(BaseModel):
     source_job_id: str = Field(min_length=1)
     company: str = Field(min_length=1)
     title: str = Field(min_length=1)
-    description: str = Field(min_length=1)
+    description: str | None = None
     responsibilities: str | None = None
     locations: list[str] | None = None
     workplace_type: Literal["remote", "hybrid", "on-site"] | None = None

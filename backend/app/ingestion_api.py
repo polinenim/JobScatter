@@ -25,17 +25,23 @@ def run_source_ingestion(source_id: UUID) -> IngestionRunSummary:
         raise HTTPException(status_code=404, detail="Source not found")
     if not source.enabled:
         raise HTTPException(status_code=409, detail="Source is disabled")
-    if source.source_type.casefold() != "greenhouse":
+    source_type = source.source_type.casefold()
+    if source_type not in {"greenhouse", "lever", "ashby", "jobly"}:
         raise HTTPException(
             status_code=400,
-            detail="Source type must be greenhouse",
+            detail="Unsupported source type",
         )
 
-    board_token = source.configuration.get("board_token")
-    if not isinstance(board_token, str) or not board_token.strip():
+    identifier_key = {"greenhouse": "board_token", "lever": "site", "ashby": "board_name", "jobly": "search_term"}[source_type]
+    identifier = source.configuration.get(identifier_key)
+    if not isinstance(identifier, str) or not identifier.strip():
         raise HTTPException(
             status_code=400,
-            detail="Greenhouse source requires configuration.board_token",
+            detail=(
+                f"Greenhouse source requires configuration.{identifier_key}"
+                if source_type == "greenhouse"
+                else f"{source_type.title()} source requires configuration.{identifier_key}"
+            ),
         )
 
     try:

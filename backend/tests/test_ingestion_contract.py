@@ -58,13 +58,20 @@ def test_contract_preserves_optional_values_and_raw_source_data():
     assert record.posted_at == datetime(2026, 9, 1, 10, tzinfo=timezone.utc)
 
 
-@pytest.mark.parametrize("field", ["source", "source_job_id", "company", "title", "description"])
+@pytest.mark.parametrize("field", ["source", "source_job_id", "company", "title"])
 def test_contract_requires_core_identity_fields(field: str):
     payload = dict(REQUIRED_FIELDS)
     del payload[field]
 
     with pytest.raises(ValidationError):
         JobIngestionRecord.model_validate(payload)
+
+
+def test_contract_allows_missing_description():
+    payload = dict(REQUIRED_FIELDS)
+    payload.pop("description")
+
+    assert JobIngestionRecord.model_validate(payload).description is None
 
 
 def test_contract_rejects_unknown_workplace_type():

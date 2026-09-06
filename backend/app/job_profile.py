@@ -59,7 +59,7 @@ class JobProfile(BaseModel):
 
 
 def extract_job_profile(job: CanonicalJob) -> JobProfile:
-    text = f"{job.title}\n{job.description}\n{job.responsibilities or ''}"
+    text = f"{job.title}\n{job.description or ''}\n{job.responsibilities or ''}"
     title = job.title.strip()
     lowered_title = title.casefold()
     lowered_text = text.casefold()

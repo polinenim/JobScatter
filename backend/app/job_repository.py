@@ -23,6 +23,7 @@ class JobStatus(StrEnum):
 class JobRepository:
     def __init__(self, connection_factory=None) -> None:
         self._connection_factory = connection_factory or self._get_connection
+        self._matching_jobs_cache: list[tuple[UUID, CanonicalJob]] | None = None
 
     @staticmethod
     def _get_connection():
@@ -31,7 +32,7 @@ class JobRepository:
     def save_deduplicated_job(
         self,
         group: DeduplicatedJob,
-        status: JobStatus = JobStatus.UNKNOWN,
+        status: JobStatus = JobStatus.ACTIVE,
     ) -> UUID:
         job = group.representative
         job_id = uuid4()
@@ -40,18 +41,23 @@ class JobRepository:
             self._insert_job(connection, job_id, company_id, job, status)
             for source_record in group.source_records:
                 self._upsert_source_record(connection, job_id, source_record)
+        self._cache_source_records(job_id, group.source_records)
         return job_id
 
     def find_matching_job(self, candidate: CanonicalJob) -> UUID | None:
-        with self._connection_factory() as connection:
-            records = connection.execute(
-                "SELECT job_id, ingestion_record FROM job_source_records"
-            ).fetchall()
+        if self._matching_jobs_cache is None:
+            with self._connection_factory() as connection:
+                records = connection.execute(
+                    "SELECT job_id, ingestion_record FROM job_source_records"
+                ).fetchall()
+            self._matching_jobs_cache = [
+                (record["job_id"], CanonicalJob.model_validate(record["ingestion_record"]))
+                for record in records
+            ]
 
-        for record in records:
-            existing = CanonicalJob.model_validate(record["ingestion_record"])
+        for job_id, existing in self._matching_jobs_cache:
             if are_duplicates(candidate, existing):
-                return record["job_id"]
+                return job_id
         return None
 
     def attach_source_records(
@@ -62,6 +68,18 @@ class JobRepository:
         with self._connection_factory() as connection:
             for source_record in source_records:
                 self._upsert_source_record(connection, job_id, source_record)
+        self._cache_source_records(job_id, source_records)
+
+    def _cache_source_records(
+        self,
+        job_id: UUID,
+        source_records: tuple[CanonicalJob, ...],
+    ) -> None:
+        if self._matching_jobs_cache is None:
+            return
+        self._matching_jobs_cache.extend(
+            (job_id, source_record) for source_record in source_records
+        )
 
     def save_job_profile(self, job_id: UUID, profile: JobProfile) -> None:
         with self._connection_factory() as connection:
@@ -98,6 +116,34 @@ class JobRepository:
             (record["job_id"], CanonicalJob.model_validate(record["ingestion_record"]))
             for record in records
         ]
+
+    def list_search_candidates(self) -> list[dict[str, Any]]:
+        with self._connection_factory() as connection:
+            records = connection.execute(
+                """
+                SELECT
+                    j.job_id, j.status, r.source, r.source_job_id,
+                    j.company_id, c.name AS company, j.title, j.description,
+                    j.responsibilities, j.locations, j.workplace_type, j.country,
+                    j.employment_type, j.opportunity_type, j.posted_at,
+                    j.updated_at, j.application_url, j.source_url,
+                    r.raw_source_data, j.discovered_at,
+                    p.profile AS job_profile
+                FROM canonical_jobs j
+                JOIN companies c ON c.company_id = j.company_id
+                LEFT JOIN job_profiles p ON p.job_id = j.job_id
+                LEFT JOIN LATERAL (
+                    SELECT source, source_job_id, raw_source_data
+                    FROM job_source_records
+                    WHERE job_id = j.job_id
+                    ORDER BY created_at
+                    LIMIT 1
+                ) r ON TRUE
+                WHERE j.status NOT IN ('closed', 'expired')
+                ORDER BY j.posted_at DESC NULLS LAST, j.job_id
+                """
+            ).fetchall()
+        return list(records)
 
     def job_profile_exists(self, job_id: UUID) -> bool:
         with self._connection_factory() as connection:

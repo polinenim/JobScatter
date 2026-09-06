@@ -77,9 +77,9 @@ def _same_locations(left: CanonicalJob, right: CanonicalJob) -> bool:
     }
 
 
-def _text_similarity(left: str, right: str) -> float:
-    left_tokens = sorted(_normalize_text(left).split())
-    right_tokens = sorted(_normalize_text(right).split())
+def _text_similarity(left: str | None, right: str | None) -> float:
+    left_tokens = sorted(_normalize_text(left or "").split())
+    right_tokens = sorted(_normalize_text(right or "").split())
     return SequenceMatcher(None, left_tokens, right_tokens).ratio()
 
 

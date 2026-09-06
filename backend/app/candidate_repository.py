@@ -82,3 +82,25 @@ class CandidateRepository:
             "created_at": result["created_at"],
             "confirmed_at": result["confirmed_at"],
         })
+
+    def get_confirmed_profile(self, candidate_id: UUID) -> CandidateProfile | None:
+        with self._connection_factory() as connection:
+            result = connection.execute(
+                """
+                SELECT candidate_id, version, status, profile, created_at, confirmed_at
+                FROM candidate_profile_versions
+                WHERE candidate_id = %s AND status = 'confirmed'
+                ORDER BY version DESC
+                LIMIT 1
+                """,
+                (candidate_id,),
+            ).fetchone()
+        if result is None:
+            return None
+        return CandidateProfile.model_validate(result["profile"] | {
+            "candidate_id": result["candidate_id"],
+            "version": result["version"],
+            "status": result["status"],
+            "created_at": result["created_at"],
+            "confirmed_at": result["confirmed_at"],
+        })

@@ -4,12 +4,15 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.ashby_adapter import AshbyAdapter
 from app.canonical_job import normalize_ingestion_record
 from app.deduplication import deduplicate_jobs
 from app.greenhouse_adapter import GreenhouseAdapter
 from app.ingestion_contract import JobIngestionRecord
 from app.job_repository import JobRepository
 from app.job_profile import extract_job_profile
+from app.jobly_adapter import JoblyAdapter
+from app.lever_adapter import LeverAdapter
 from app.source_registry import SourceRegistryRecord
 
 
@@ -36,17 +39,54 @@ class IngestionPipeline:
         summary = IngestionRunSummary()
         if not source.enabled:
             return summary
-        if source.source_type.casefold() != "greenhouse":
+        source_type = source.source_type.casefold()
+        if source_type not in {"greenhouse", "lever", "ashby", "jobly"}:
             summary.errors = 1
             return summary
 
-        board_token = source.configuration.get("board_token")
-        if not isinstance(board_token, str) or not board_token.strip():
+        identifier_key = {"greenhouse": "board_token", "lever": "site", "ashby": "board_name", "jobly": "search_term"}[source_type]
+        identifier = source.configuration.get(identifier_key)
+        if not isinstance(identifier, str) or not identifier.strip():
             summary.errors = 1
             return summary
 
         try:
-            adapter = self._adapter_factory(board_token)
+            if source_type == "greenhouse":
+                if self._adapter_factory is GreenhouseAdapter:
+                    adapter = self._adapter_factory(
+                        identifier,
+                        max_results=source.configuration.get("max_results"),
+                    )
+                else:
+                    adapter = self._adapter_factory(identifier)
+            elif source_type == "lever":
+                company_name = source.configuration.get("company_name")
+                if not isinstance(company_name, str) or not company_name.strip():
+                    summary.errors = 1
+                    return summary
+                adapter = LeverAdapter(
+                    identifier,
+                    company_name,
+                    source.configuration.get("region", "global"),
+                    max_results=source.configuration.get("max_results"),
+                )
+            else:
+                company_name = source.configuration.get("company_name")
+                if source_type == "ashby":
+                    if not isinstance(company_name, str) or not company_name.strip():
+                        summary.errors = 1
+                        return summary
+                    adapter = AshbyAdapter(
+                        identifier,
+                        company_name,
+                        max_results=source.configuration.get("max_results"),
+                    )
+                else:
+                    adapter = JoblyAdapter(
+                        search_term=identifier,
+                        location=source.configuration.get("location", "Finland"),
+                        max_results=source.configuration.get("max_results", 20),
+                    )
             records = list(adapter.fetch_jobs())
         except Exception:
             summary.errors = 1

@@ -16,7 +16,7 @@ class CanonicalJob(BaseModel):
     source_job_id: str = Field(min_length=1)
     company: str = Field(min_length=1)
     title: str = Field(min_length=1)
-    description: str = Field(min_length=1)
+    description: str | None = None
     responsibilities: str | None = None
     locations: list[str] | None = None
     workplace_type: Literal["remote", "hybrid", "on-site"] | None = None
@@ -38,7 +38,7 @@ def normalize_ingestion_record(record: JobIngestionRecord) -> CanonicalJob:
         source_job_id=_required_text(record.source_job_id),
         company=_required_text(record.company),
         title=_required_text(record.title),
-        description=_required_text(record.description),
+        description=_optional_text(record.description),
         responsibilities=_optional_text(record.responsibilities),
         locations=_normalize_locations(record.locations),
         workplace_type=record.workplace_type,

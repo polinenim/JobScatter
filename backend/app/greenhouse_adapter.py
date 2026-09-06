@@ -12,17 +12,25 @@ class GreenhouseAdapter:
 
     base_url = "https://boards-api.greenhouse.io/v1/boards"
 
-    def __init__(self, board_token: str, client: httpx.Client | None = None) -> None:
+    def __init__(
+        self,
+        board_token: str,
+        client: httpx.Client | None = None,
+        max_results: int | None = None,
+    ) -> None:
         if not board_token.strip():
             raise ValueError("board_token must not be empty")
         self.board_token = board_token
         self._client = client
+        self.max_results = max_results
 
     def fetch_jobs(self) -> list[JobIngestionRecord]:
         """Fetch published jobs, returning no records when the board is unavailable."""
         client, should_close = self._get_client()
         try:
             jobs = self._fetch_job_summaries(client)
+            if self.max_results is not None:
+                jobs = jobs[:self.max_results]
             records: list[JobIngestionRecord] = []
             for summary in jobs:
                 record = self._fetch_record(client, summary)

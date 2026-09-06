@@ -52,7 +52,9 @@ def make_job(source: str, source_job_id: str, raw_source_data: dict) -> Canonica
 
 def test_save_deduplicated_job_persists_company_job_and_all_source_records():
     first = make_job("greenhouse", "123", {"id": 123})
-    second = make_job("lever", "456", {"id": "456"})
+    second = make_job("lever", "456", {"id": "456"}).model_copy(
+        update={"title": "Product Designer"}
+    )
     group = DeduplicatedJob(first, (first, second))
     connection = FakeConnection()
     repository = JobRepository(connection_factory=lambda: connection)
@@ -66,12 +68,39 @@ def test_save_deduplicated_job_persists_company_job_and_all_source_records():
     assert "INSERT INTO job_source_records" in connection.calls[2][0]
     assert "INSERT INTO job_source_records" in connection.calls[3][0]
     assert connection.calls[1][1][1] == connection.company_id
-    assert connection.calls[1][1][16] == JobStatus.UNKNOWN.value
+    assert connection.calls[1][1][16] == JobStatus.ACTIVE.value
     assert connection.calls[1][1][5].obj == ["New York, NY"]
     assert connection.calls[1][1][10].obj == {"currency": "USD", "min": 100000}
     assert connection.calls[2][1][1] == job_id
     assert connection.calls[2][1][7].obj == {"id": 123}
     assert connection.calls[3][1][7].obj == {"id": "456"}
+
+
+def test_find_matching_job_loads_existing_records_once_per_repository():
+    first = make_job("greenhouse", "123", {"id": 123})
+    second = make_job("lever", "456", {"id": "456"}).model_copy(
+        update={"title": "Product Designer"}
+    )
+
+    class MatchingConnection(FakeConnection):
+        def execute(self, query, params=None):
+            self.calls.append((query, params))
+            if "SELECT job_id, ingestion_record" in query:
+                return type("Result", (), {
+                    "fetchall": lambda _: [{
+                        "job_id": uuid4(),
+                        "ingestion_record": first.model_dump(mode="json"),
+                    }]
+                })()
+            return FakeResult({"company_id": self.company_id})
+
+    connection = MatchingConnection()
+    repository = JobRepository(connection_factory=lambda: connection)
+
+    assert repository.find_matching_job(first) is not None
+    assert repository.find_matching_job(second) is None
+
+    assert sum("SELECT job_id, ingestion_record" in query for query, _ in connection.calls) == 1
 
 
 def test_save_deduplicated_job_persists_requested_status():

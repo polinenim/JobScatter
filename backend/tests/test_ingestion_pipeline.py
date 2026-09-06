@@ -152,3 +152,30 @@ def test_pipeline_reports_missing_board_token():
 
     assert summary.errors == 1
     assert summary.fetched == 0
+
+
+def test_pipeline_accepts_jobly_source_configuration(monkeypatch):
+    records = [make_record("jobly-1")]
+    source = make_source(
+        configuration={"search_term": "software", "location": "Finland"}
+    ).model_copy(update={"source_type": "jobly"})
+
+    class FakeJoblyAdapter:
+        def __init__(self, **configuration):
+            assert configuration == {
+                "search_term": "software",
+                "location": "Finland",
+                "max_results": 20,
+            }
+
+        def fetch_jobs(self):
+            return records
+
+    monkeypatch.setattr("app.ingestion_pipeline.JoblyAdapter", FakeJoblyAdapter)
+    repository = FakeRepository()
+
+    summary = IngestionPipeline(repository=repository).run_source(source)
+
+    assert summary.fetched == 1
+    assert summary.valid == 1
+    assert summary.new == 1

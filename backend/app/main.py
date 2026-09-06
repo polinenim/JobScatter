@@ -7,6 +7,7 @@ from app.ingestion_api import router as ingestion_router
 from app.jobs_api import router as jobs_router
 from app.config import settings
 from app.source_registry import router as source_registry_router
+from app.search_api import router as search_router
 
 app = FastAPI(title="JobScout AI API", version="0.1.0")
 app.add_middleware(
@@ -20,6 +21,7 @@ app.include_router(source_registry_router)
 app.include_router(ingestion_router)
 app.include_router(cv_router)
 app.include_router(jobs_router)
+app.include_router(search_router)
 
 
 @app.get("/health")

@@ -91,6 +91,25 @@ def test_fetch_jobs_returns_empty_list_for_board_http_error():
     assert records == []
 
 
+def test_fetch_jobs_honors_controlled_max_results():
+    summaries = [
+        {**SUMMARY, "id": index, "title": f"Role {index}"}
+        for index in range(3)
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/jobs"):
+            return httpx.Response(200, json={"jobs": summaries})
+        summary = next(item for item in summaries if request.url.path.endswith(str(item["id"])))
+        return httpx.Response(200, json={**DETAIL, **summary, "id": summary["id"]})
+
+    records = GreenhouseAdapter(
+        "example", mocked_client(handler), max_results=2
+    ).fetch_jobs()
+
+    assert len(records) == 2
+
+
 def test_fetch_jobs_skips_a_posting_when_detail_request_fails():
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/jobs"):

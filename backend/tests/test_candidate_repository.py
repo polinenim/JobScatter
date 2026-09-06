@@ -32,6 +32,15 @@ class FakeConnection:
         self.calls.append((query, params))
         if "MAX(version)" in query:
             return FakeResult({"next_version": 2})
+        if "SELECT candidate_id, version, status, profile" in query:
+            return FakeResult({
+                "candidate_id": self.profile_id,
+                "version": 2,
+                "status": "confirmed",
+                "profile": {"candidate_id": str(self.profile_id), "version": 2},
+                "created_at": datetime.now(timezone.utc),
+                "confirmed_at": datetime.now(timezone.utc),
+            })
         if "RETURNING candidate_id" in query:
             if self.confirmed:
                 return FakeResult(None)
@@ -73,3 +82,14 @@ def test_confirmed_profile_version_can_be_confirmed_once():
     assert confirmed.status == "confirmed"
     with pytest.raises(ValueError):
         repository.confirm_profile_version(connection.profile_id, 1)
+
+
+def test_latest_confirmed_profile_can_be_loaded():
+    connection = FakeConnection()
+    repository = CandidateRepository(connection_factory=lambda: connection)
+
+    profile = repository.get_confirmed_profile(connection.profile_id)
+
+    assert profile is not None
+    assert profile.version == 2
+    assert profile.status == "confirmed"
