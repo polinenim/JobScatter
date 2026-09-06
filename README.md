@@ -21,8 +21,17 @@ docker compose up --build
 - Backend API: http://localhost:8000
 - Backend health: http://localhost:8000/health
 - PostgreSQL: localhost:5432
+- n8n (local development): http://localhost:5678
 
 Stop services with `docker compose down`. Add `-v` only when you intentionally want to delete the local database volume.
+The n8n local data is stored in the `n8n_data` Docker volume.
+
+### n8n API health workflow
+
+Open http://localhost:5678, sign in with the local n8n owner account, and open
+`JobScatter API Health Check` from the Workflows view. Select **Execute Workflow**
+to run the Manual Trigger -> JobScout API Health check. The HTTP Request node uses
+`http://backend:8000/health`, which is the Compose service address from inside n8n.
 
 ## Run services locally
 

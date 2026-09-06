@@ -1,0 +1,107 @@
+{
+  "id": "jobscatter-scheduled-search-v1",
+  "name": "JobScatter Scheduled Search",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "jobscatter-schedule",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [260, 260]
+    },
+    {
+      "parameters": {},
+      "id": "jobscatter-manual",
+      "name": "Manual Validation",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 440]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "candidate-id",
+              "name": "candidate_id",
+              "type": "string",
+              "value": "={{$env.JOBSCATTER_CANDIDATE_ID}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "jobscatter-candidate",
+      "name": "Candidate Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [520, 340]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"candidate_id\":\"{{$json.candidate_id}}\"}",
+        "options": {}
+      },
+      "id": "jobscatter-search",
+      "name": "Stored Candidate Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 340]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/search/pdf",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"candidate_id\":\"{{$node[\"Candidate Configuration\"].json.candidate_id}}\"}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "jobscatter-pdf",
+      "name": "Generate Job PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, 340]
+    }
+  ],
+  "connections": {
+    "Daily Schedule": {
+      "main": [[{"node": "Candidate Configuration", "type": "main", "index": 0}]]
+    },
+    "Manual Validation": {
+      "main": [[{"node": "Candidate Configuration", "type": "main", "index": 0}]]
+    },
+    "Candidate Configuration": {
+      "main": [[{"node": "Stored Candidate Search", "type": "main", "index": 0}]]
+    },
+    "Stored Candidate Search": {
+      "main": [[{"node": "Generate Job PDF", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {}
+}

@@ -31,12 +31,31 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_CANDIDATE_ID: ${JOBSCATTER_CANDIDATE_ID:-32f7bcbf-2e87-4b9b-8847-beb47d4defdf}
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_CANDIDATE_ID: ${JOBSCATTER_CANDIDATE_ID:-32f7bcbf-2e87-4b9b-8847-beb47d4defdf}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
       - backend
 
+  n8n:
+    image: n8nio/n8n:latest
+    environment:
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      JOBSCATTER_CANDIDATE_ID: ${JOBSCATTER_CANDIDATE_ID:-}
+      N8N_PROTOCOL: http
+      N8N_EDITOR_BASE_URL: http://localhost:5678/
+      N8N_SECURE_COOKIE: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+
 volumes:
   postgres_data:
+  n8n_data:
