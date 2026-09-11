@@ -1,6 +1,6 @@
-# JobScout AI Foundation
+# JobScatter AI
 
-Phase 1 establishes the local development foundation for JobScout AI. Business features are intentionally not included.
+JobScatter AI is a Finland-focused job intelligence application for discovering early-career technology opportunities.
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ The n8n local data is stored in the `n8n_data` Docker volume.
 
 Open http://localhost:5678, sign in with the local n8n owner account, and open
 `JobScatter API Health Check` from the Workflows view. Select **Execute Workflow**
-to run the Manual Trigger -> JobScout API Health check. The HTTP Request node uses
+to run the Manual Trigger -> JobScatter API Health check. The HTTP Request node uses
 `http://backend:8000/health`, which is the Compose service address from inside n8n.
 
 ## Run services locally
@@ -58,7 +58,7 @@ When running outside Docker, set `DATABASE_URL` to a reachable PostgreSQL instan
 
 ## Source Registry
 
-Phase 2 Step 1 exposes the source configuration and operational status record through the backend API:
+The source registry exposes the source configuration and operational status record through the backend API:
 
 - `POST /sources` creates a source record.
 - `GET /sources` lists registered sources.
@@ -66,7 +66,7 @@ Phase 2 Step 1 exposes the source configuration and operational status record th
 - `PATCH /sources/{source_id}` updates configuration or operational status.
 - `DELETE /sources/{source_id}` removes a source record.
 
-The registry does not call external job sources. Source-specific behavior belongs in future Source Adapters.
+The registry stores source configuration and operational status. Source-specific behavior belongs in the corresponding Source Adapters.
 
 ## Tests
 
