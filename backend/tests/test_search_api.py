@@ -38,6 +38,23 @@ def test_unified_search_reads_stored_jobs_without_collecting_sources():
     assert result.total == 0
 
 
+def test_to_search_candidate_handles_legacy_job_without_source_record():
+    job_id = uuid4()
+    item = search_api._to_search_candidate({
+        "job_id": job_id,
+        "source": None,
+        "source_job_id": None,
+        "company": "Example Co",
+        "title": "Software Engineer",
+        "application_url": "https://jobs.example.test/apply",
+        "source_url": "https://jobs.example.test/job",
+        "discovered_at": NOW,
+    })
+
+    assert item.job.source == "unknown"
+    assert item.job.source_job_id == str(job_id)
+
+
 def test_post_search_uses_candidate_id_and_returns_pdf_ready_fields(monkeypatch):
     candidate_id = uuid4()
 

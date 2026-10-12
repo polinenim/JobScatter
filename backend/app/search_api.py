@@ -15,7 +15,7 @@ from app.pdf_report import generate_job_report
 from app.search_service import SearchCandidate, is_eligible, order_results
 from app.ingestion_pipeline import IngestionPipeline
 from app.source_registry import list_sources
-
+import logging
 router = APIRouter(tags=["search"])
 
 
@@ -105,6 +105,7 @@ def fetch_and_search(request: UnifiedSearchRequest) -> UnifiedSearchResponse:
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except Exception as exc:
+        logging.exception("Fetch and search failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Fetch and search failed",
@@ -124,16 +125,17 @@ def search_pdf(request: UnifiedSearchRequest) -> Response:
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except Exception as exc:
+        logging.exception("Fetch and search failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Job report generation failed",
+            detail="Fetch and search failed",
         ) from exc
 
 
 def _to_search_candidate(row: dict) -> SearchCandidate:
     job = CanonicalJob(
-        source=row["source"],
-        source_job_id=str(row["source_job_id"]),
+        source=row.get("source") or "unknown",
+        source_job_id=str(row.get("source_job_id") or row["job_id"]),
         company=row["company"],
         title=row["title"],
         description=row.get("description"),
