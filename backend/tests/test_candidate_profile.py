@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -43,3 +43,25 @@ def test_candidate_profile_rejects_unknown_experience_type():
             title="Engineer",
             experience_type="volunteer",
         )
+
+
+def test_experience_rejects_end_date_before_start_date():
+    with pytest.raises(ValidationError, match="end_date must be on or after start_date"):
+        Experience(
+            organization="Example Co",
+            title="Engineer",
+            experience_type=ExperienceType.PROFESSIONAL,
+            start_date=date(2025, 2, 1),
+            end_date=date(2025, 1, 31),
+        )
+
+
+def test_experience_allows_open_ended_date_range():
+    experience = Experience(
+        organization="Example Co",
+        title="Engineer",
+        experience_type=ExperienceType.PROFESSIONAL,
+        start_date=date(2025, 2, 1),
+    )
+
+    assert experience.end_date is None

@@ -1,9 +1,9 @@
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Proficiency(StrEnum):
@@ -57,6 +57,16 @@ class Experience(BaseModel):
     end_date: date | None = None
     skills: list[str] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_date_range(self) -> Self:
+        if (
+            self.start_date is not None
+            and self.end_date is not None
+            and self.end_date < self.start_date
+        ):
+            raise ValueError("end_date must be on or after start_date")
+        return self
 
 
 class Certification(BaseModel):
