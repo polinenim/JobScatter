@@ -2,9 +2,9 @@
 
 <div align="center">
 
-**Multi-Source Job Intelligence & Matching Platform**
+**Multi-Source Job Discovery & Matching Platform**
 
-A Finland-focused job intelligence application for discovering early-career technology opportunities through intelligent aggregation and matching.
+A Finland-focused application for collecting technology job listings and matching them against candidate profiles.
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11+-blue)](https://www.python.org/)
@@ -34,27 +34,25 @@ A Finland-focused job intelligence application for discovering early-career tech
 
 ## Overview
 
-JobScatter is an intelligent job aggregation and matching platform that:
+JobScatter is a job aggregation and matching platform that:
 
-- 🔍 **Aggregates** job listings from multiple sources
-- 🤖 **Intelligently matches** opportunities with candidates
-- 📊 **Provides analytics** on job market trends
-- 🔄 **Maintains real-time** data synchronization
-- 🛡️ **Ensures data integrity** across distributed sources
+- 🔍 **Collects** job listings from supported job-board sources
+- 🤖 **Matches** listings against candidate profiles
+- 📄 **Extracts** text from uploaded PDF CVs
+- 📥 **Exports** matching results as a PDF report
 
 ### Key Features
 
-- Multi-source job aggregation with real-time updates
-- Advanced job matching algorithms
-- Comprehensive API for source management
-- Scalable architecture with containerized deployment
-- Health monitoring and workflow automation
+- Source registry and ingestion for supported job boards
+- Candidate-profile-based job search and filtering
+- PDF CV text extraction and matching-report export
+- Docker Compose setup for the frontend, API, database, and n8n
 
 ---
 
 ## 📐 Architecture
 
-JobScatter follows a microservices architecture with clear separation of concerns:
+JobScatter consists of a Next.js frontend, a FastAPI backend, and a PostgreSQL database. An n8n service is included in Docker Compose for optional workflow automation.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -64,11 +62,11 @@ JobScatter follows a microservices architecture with clear separation of concern
 └──────────────────┬──────────────────────────────────┘
                    │
 ┌──────────────────┴──────────────────────────────────┐
-│              API Gateway Layer                      │
+│                Backend API Layer                    │
 │         (Backend - FastAPI/Uvicorn)                │
 │                 :8000                              │
 │  ┌────────────────────────────────────────────┐   │
-│  │  Authentication │ Authorization │ Routing  │   │
+│  │                API routing                 │   │
 │  └────────────────────────────────────────────┘   │
 └──────────────────┬──────────────────────────────────┘
                    │
@@ -78,10 +76,10 @@ JobScatter follows a microservices architecture with clear separation of concern
 │   Core    │ │  Source  │ │ Automation │
 │  Services │ │ Adapters │ │  (n8n)     │
 ├───────────┤ ├──────────┤ ├────────────┤
-│ • Jobs    │ │ • Parser │ │ • Webhooks │
-│ • Matches │ │ • Sync   │ │ • Health   │
-│ • Metrics │ │ • Adapter│ │  Checks    │
-│ • Sources │ │  Pattern │ │ • Triggers │
+│ • Search  │ │ • Parser │ │ • Triggers │
+│ • Jobs    │ │ • Sync   │ │ • HTTP     │
+│ • Sources │ │ • Adapter│ │  Requests  │
+│           │ │  Pattern │ │            │
 └───────────┘ └──────────┘ └────────────┘
         │          │          │
         └──────────┼──────────┘
@@ -89,7 +87,7 @@ JobScatter follows a microservices architecture with clear separation of concern
     ┌──────────────┴──────────────┐
     │      Data Layer             │
     │  (PostgreSQL Database)      │
-    │    :5432                    │
+    │  :5432 in container         │
     └─────────────────────────────┘
 ```
 
@@ -98,46 +96,10 @@ JobScatter follows a microservices architecture with clear separation of concern
 | Component | Purpose | Technology |
 |-----------|---------|-----------|
 | **Frontend** | User interface & interactions | React/Next.js, TypeScript, CSS |
-| **Backend API** | Core business logic & routing | FastAPI, Python 3.11+ |
-| **Database** | Persistent data storage | PostgreSQL |
-| **n8n Workflow** | Automation & event orchestration | n8n, HTTP requests |
-| **Source Adapters** | Multi-source aggregation | Custom Python modules |
-
-### Data Flow
-
-```
-External Job Sources
-        │
-        ▼
-┌────────────────────────────┐
-│  Source Adapters           │
-│  (Parse & Transform)       │
-└────────────┬───────────────┘
-             │
-             ▼
-┌────────────────────────────┐
-│  n8n Workflows             │
-│  (Orchestration)           │
-└────────────┬───────────────┘
-             │
-             ▼
-┌────────────────────────────┐
-│  Backend API               │
-│  (Validation & Storage)    │
-└────────────┬───────────────┘
-             │
-             ▼
-┌────────────────────────────┐
-│  PostgreSQL Database       │
-│  (Persistence)             │
-└────────────┬───────────────┘
-             │
-             ▼
-┌────────────────────────────┐
-│  Frontend Application      │
-│  (Presentation)            │
-└────────────────────────────┘
-```
+| **Backend API** | Job search, ingestion, CV extraction, and source management | FastAPI, Python 3.11+ |
+| **Database** | Persistent job, candidate, and source data | PostgreSQL with pgvector |
+| **n8n** | Optional workflow automation; workflows are configured in n8n | n8n, HTTP requests |
+| **Source Adapters** | Fetch and normalize Greenhouse, Lever, Ashby, and Jobly listings | Python modules |
 
 ---
 
@@ -146,30 +108,11 @@ External Job Sources
 ### Job Aggregation Workflow
 
 ```
-1. Data Collection
-   ├─ Trigger: Scheduled (n8n) or Webhook
-   ├─ Action: Connect to source APIs
-   └─ Output: Raw job listings
-
-2. Data Transformation
-   ├─ Adapter: Source-specific parser
-   ├─ Process: Normalize & validate
-   └─ Output: Standardized job objects
-
-3. Data Enrichment
-   ├─ Categorization: Job level, company, location
-   ├─ Analysis: Required skills, market trends
-   └─ Output: Enhanced job metadata
-
-4. Storage & Indexing
-   ├─ Database: Insert/update in PostgreSQL
-   ├─ Indexing: Enable fast search
-   └─ Output: Persistent, queryable records
-
-5. Notification & Sync
-   ├─ Trigger: New jobs alert
-   ├─ Matching: Candidate fit analysis
-   └─ Output: User notifications & recommendations
+1. A client requests a fetch-and-search operation.
+2. The backend runs ingestion for enabled, supported sources.
+3. Adapters normalize listings and the backend stores them in PostgreSQL.
+4. The backend matches stored listings against the requested candidate profile.
+5. The frontend displays results; clients can also request a PDF report.
 ```
 
 ### Source Registry Workflow
@@ -181,7 +124,7 @@ External Job Sources
 
 POST /sources
   └─► Create source configuration
-      (API endpoint, auth, update frequency)
+      (source type, access method, endpoint metadata, configuration)
 
 GET /sources
   └─► List all registered sources
@@ -193,36 +136,18 @@ GET /sources/{source_id}
 
 PATCH /sources/{source_id}
   └─► Update config or operational status
-      (Pause, resume, adjust frequency)
+      (Enable/disable or update source metadata)
 
 DELETE /sources/{source_id}
-  └─► Remove source registration
-      (Clean up & archive history)
+  └─► Delete the source registration
 ```
 
 ### CI/CD Workflow
 
 ```
-Git Push / Pull Request
-        │
-        ▼
-GitHub Actions Trigger
-        │
-    ┌───┴───┐
-    │       │
-    ▼       ▼
-Backend   Frontend
-Tests     Tests
-    │       │
-    ├───┬───┤
-    │   │   │
-    ▼   ▼   ▼
- Lint Lint Build
-    │   │   │
-    └───┴───┘
-        │
-        ▼
-Deploy (if main)
+Push or pull request → backend tests + frontend tests + frontend build
+
+Successful CI run on master → publish available Docker images to GHCR
 ```
 
 ---
@@ -233,7 +158,7 @@ Deploy (if main)
 - **Framework**: FastAPI (async web framework)
 - **Runtime**: Python 3.11+
 - **Database**: PostgreSQL (relational data)
-- **ORM**: SQLAlchemy (database abstraction)
+- **Database access**: psycopg (PostgreSQL driver)
 - **Validation**: Pydantic (data validation)
 - **Server**: Uvicorn (ASGI server)
 
@@ -242,17 +167,17 @@ Deploy (if main)
 - **Language**: TypeScript
 - **Styling**: CSS
 - **Runtime**: Node.js 20+
-- **Package Manager**: npm/pnpm
+- **Package Manager**: npm
 
 ### Infrastructure
 - **Containerization**: Docker & Docker Compose
 - **Workflow Engine**: n8n (automation)
 - **CI/CD**: GitHub Actions
-- **Environment**: Local dev & production ready
+- **Environment**: Local development and Docker Compose
 
 ### Development Tools
-- **Testing**: pytest (backend), Jest (frontend)
-- **Linting**: Configured per language
+- **Testing**: pytest (backend), Vitest (frontend)
+- **CI checks**: Backend tests, frontend tests, and frontend production build
 - **Version Control**: Git
 
 ---
@@ -292,7 +217,7 @@ The fastest way to get started with all services running together:
    - Backend API: http://localhost:8000
    - API Docs: http://localhost:8000/docs (Swagger UI)
    - Health Check: http://localhost:8000/health
-   - PostgreSQL: localhost:5432
+   - PostgreSQL: localhost:5433 (container port 5432)
    - n8n Workflows: http://localhost:5678
 
 5. **Stop services**
@@ -310,12 +235,12 @@ The fastest way to get started with all services running together:
 To verify the backend health through n8n:
 
 1. Open http://localhost:5678
-2. Sign in with the local n8n owner account
-3. Navigate to **Workflows** and select `JobScatter API Health Check`
-4. Click **Execute Workflow**
-5. The workflow will run: Manual Trigger → HTTP Request to `http://backend:8000/health`
+2. On first visit, complete n8n's owner-account setup; then sign in.
+3. Create a workflow with a **Manual Trigger** node and an **HTTP Request** node.
+4. Configure the HTTP Request node to send a `GET` request to `http://backend:8000/health`.
+5. Execute the workflow. The backend is reachable by the service name `backend` from the n8n container.
 
-> **Note**: n8n local data is stored in the `n8n_data` Docker volume and persists between restarts.
+> **Note**: n8n workflows and local data are stored in the `n8n_data` Docker volume and persist between restarts. No JobScatter workflow is preloaded.
 
 ---
 
@@ -344,6 +269,9 @@ pip install -r requirements.txt
 copy ..\.env.example .env  # Windows
 # or
 cp ../.env.example .env  # macOS/Linux
+
+# The example DATABASE_URL uses the Docker Compose hostname. For local
+# development, set it to the address of your PostgreSQL server (see below).
 
 # Run server with auto-reload
 uvicorn app.main:app --reload --port 8000
@@ -374,6 +302,7 @@ When running services locally (not in Docker):
    ```bash
    DATABASE_URL=postgresql://user:password@localhost:5432/jobscatter
    ```
+   If you use the PostgreSQL service from Docker Compose, its default host port is `5433`; use `localhost:5433` rather than the container-only hostname `db`.
 
 3. The backend health endpoint will report database connectivity:
    ```bash
@@ -399,13 +328,19 @@ The API documentation is automatically generated and available at:
 | `GET` | `/sources/{source_id}` | Get specific source details |
 | `PATCH` | `/sources/{source_id}` | Update source config or status |
 | `DELETE` | `/sources/{source_id}` | Remove a source registration |
+| `POST` | `/ingestion/sources/{source_id}/run` | Run ingestion for an enabled, supported source |
+| `GET` | `/jobs` | List and filter stored jobs |
+| `POST` | `/search` | Match stored jobs to a candidate profile |
+| `POST` | `/fetch` | Ingest enabled sources, then search for matching jobs |
+| `POST` | `/search/pdf` | Download matching results as a PDF |
+| `POST` | `/candidates/cv/extract` | Extract text from a PDF CV |
 
 ### Health & Status
 
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /health` | System health check (includes DB connection) |
-| `GET /status` | Detailed service status |
+| `GET /` | API name and basic status |
 
 ### Example: Create a Source
 
@@ -413,12 +348,14 @@ The API documentation is automatically generated and available at:
 curl -X POST http://localhost:8000/sources \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "LinkedIn Jobs",
-    "source_type": "linkedin",
-    "api_endpoint": "https://api.linkedin.com/jobs",
-    "config": {"location": "Finland"}
+    "source_name": "Example Greenhouse Board",
+    "source_type": "greenhouse",
+    "access_method": "public_api",
+    "configuration": {"board_token": "example-board"}
   }'
 ```
+
+The `board_token` is required by the Greenhouse adapter. Other source types have their own configuration requirements.
 
 ---
 
@@ -431,21 +368,20 @@ All configuration is managed through `.env` files:
 **`.env.example`** contains defaults for local development:
 - `DATABASE_URL`: PostgreSQL connection string
 - `NEXT_PUBLIC_API_URL`: Frontend API endpoint
-- `BACKEND_PORT`: Backend server port
-- `N8N_ADMIN_EMAIL`: n8n admin account
-- Source API credentials and endpoints
+- `BACKEND_PORT`, `FRONTEND_PORT`, `POSTGRES_PORT`, `N8N_PORT`: Published host ports
+- `JOBSCATTER_CANDIDATE_ID`: Candidate profile ID exposed to the frontend
 
 **Production Secrets**:
 - Keep actual secrets in `.env` (Git-ignored)
-- Frontend receives only `NEXT_PUBLIC_API_URL`
-- All other credentials stay backend-only
+- `NEXT_PUBLIC_API_URL` and `JOBSCATTER_CANDIDATE_ID` are exposed to the frontend; do not put secrets in frontend variables
+- Source configuration is stored by the backend
 - Use `.env.production` for production deployments
 
 ### Database Configuration
 
-- **Default**: PostgreSQL in Docker (localhost:5432)
+- **Default**: PostgreSQL in Docker, published on `localhost:5433` (container port `5432`)
 - **Custom**: Set `DATABASE_URL` for external databases
-- **Local Dev**: Required for running backend outside Docker
+- **Local Dev**: Set `DATABASE_URL` to the address and credentials of your local database
 
 ---
 
@@ -462,8 +398,8 @@ pytest
 # Run with coverage
 pytest --cov=app
 
-# Run specific test file
-pytest tests/test_sources.py
+# Run a specific test file
+pytest tests/test_source_registry.py
 
 # Run with verbose output
 pytest -v
@@ -507,20 +443,16 @@ JobScatter/
 ├── backend/                 # FastAPI application
 │   ├── app/
 │   │   ├── main.py         # Application entry point
-│   │   ├── api/            # API endpoints
-│   │   ├── models/         # Database models
-│   │   ├── schemas/        # Pydantic schemas
-│   │   ├── services/       # Business logic
-│   │   └── adapters/       # Source adapters
+│   │   ├── *_api.py        # API routers
+│   │   ├── *_repository.py # PostgreSQL access
+│   │   └── *_adapter.py    # Source adapters
 │   ├── tests/              # Backend tests
 │   ├── requirements.txt    # Python dependencies
 │   └── .env                # Backend configuration
 │
 ├── frontend/               # Next.js application
-│   ├── pages/             # Page components
-│   ├── components/        # Reusable components
-│   ├── lib/               # Utilities & helpers
-│   ├── styles/            # CSS modules
+│   ├── app/               # Next.js App Router pages and layout
+│   ├── app/globals.css    # Global styles
 │   ├── package.json       # Node dependencies
 │   └── .env.local         # Frontend configuration
 │
@@ -558,21 +490,21 @@ JobScatter/
 ### Code Standards
 
 - **Python**: PEP 8 compliant, type hints required
-- **TypeScript**: Strict mode, ESLint configured
+- **TypeScript**: Strict mode
 - **Commits**: Conventional Commits format
-- **Tests**: Minimum 80% coverage for new code
+- **Tests**: Add tests for new behavior
 
 ---
 
 ## 🔄 CI/CD Pipeline
 
-GitHub Actions automatically runs on pushes and pull requests:
+GitHub Actions runs CI on pushes and pull requests:
 
 1. ✅ **Backend Tests**: Run pytest suite
 2. ✅ **Frontend Tests**: Run npm test
-3. ✅ **Linting**: Code quality checks
-4. ✅ **Build**: Production build verification
-5. 🚀 **Deploy**: Automatic deploy to production (on main branch)
+3. ✅ **Frontend Build**: Verify the production build
+
+After a successful CI run on `master`, the CD workflow builds and publishes backend and frontend images to GitHub Container Registry when their Dockerfiles are present. It does not deploy the application.
 
 ---
 
