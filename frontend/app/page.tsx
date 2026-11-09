@@ -85,12 +85,29 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidate_id: candidateId }),
       });
-      if (!response.ok) throw new Error("Unable to fetch jobs right now.");
+      if (!response.ok) {
+        const payload: unknown = await response.json().catch(() => null);
+        const detail =
+          typeof payload === "object" &&
+          payload !== null &&
+          "detail" in payload &&
+          typeof payload.detail === "string"
+            ? payload.detail
+            : null;
+        if (response.status < 500 && detail) throw new Error(detail);
+        throw new Error(`Job search failed (HTTP ${response.status}). Please try again.`);
+      }
       const payload = (await response.json()) as { items?: SearchResult[] };
       setResults(payload.items || []);
       setFetchState("complete");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to fetch jobs right now.");
+      setErrorMessage(
+        error instanceof TypeError
+          ? "Unable to reach the JobScatter API. Check that the backend is running and try again."
+          : error instanceof Error
+            ? error.message
+            : "Unable to fetch jobs right now. Please try again.",
+      );
       setFetchState("error");
     }
   }
@@ -162,7 +179,11 @@ export default function Home() {
         <span>Run automatically</span>
       </section>
 
-      {fetchState === "loading" && <p className="fetch-status" role="status">Finding fresh jobs...</p>}
+      {fetchState === "loading" && (
+        <p className="fetch-status" role="status" aria-live="polite">
+          Refreshing job sources and finding matching jobs. This may take a moment...
+        </p>
+      )}
       {fetchState === "error" && <p className="fetch-status error-status" role="alert">{errorMessage}</p>}
       {fetchState === "complete" && (
         <ResultsScreen results={results} onDownload={downloadPdf} />

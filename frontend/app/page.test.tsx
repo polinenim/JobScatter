@@ -31,7 +31,38 @@ describe("profile home page", () => {
 
     expect(screen.queryByText("Your latest search is ready.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "FETCH JOBS" }));
-    expect(screen.getByRole("button", { name: "FETCHING..." })).toBeDefined();
+    expect(screen.getByRole("button", { name: "FETCHING..." }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("status").textContent).toContain("Refreshing job sources");
+  });
+
+  it("shows a clear message when the backend cannot be reached", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CANDIDATE_ID", "candidate-1");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    render(<Home />);
+
+    fireEvent.click(screen.getByRole("button", { name: "FETCH JOBS" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Unable to reach the JobScatter API. Check that the backend is running and try again.",
+    );
+    expect(screen.getByRole("button", { name: "FETCH JOBS" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("shows a useful API error and allows the user to retry", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CANDIDATE_ID", "candidate-1");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ detail: "Confirmed candidate profile not found" }),
+    }));
+    render(<Home />);
+
+    fireEvent.click(screen.getByRole("button", { name: "FETCH JOBS" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Confirmed candidate profile not found",
+    );
+    expect(screen.getByRole("button", { name: "FETCH JOBS" }).hasAttribute("disabled")).toBe(false);
   });
 
   it("shows the minimal result row and PDF action after fetch", async () => {
